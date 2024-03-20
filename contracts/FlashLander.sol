@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+// Uncomment this line to use console.log
+import "hardhat/console.sol";
+
 import {IERC3156FlashBorrower} from "./IERC3156FlashBorrower.sol";
 import {IERC3156FlashLender} from "./IERC3156FlashLender.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-abstract contract FlashLander is IERC3156FlashLender {
-    address tokenAddress;
+contract FlashLander is IERC3156FlashLender {
+
+    address public owner;
+    address public tokenAddress;
   
     bytes32 private constant RETURN_VALUE = keccak256("ERC3156FlashBorrower.onFlashLoan");
     
@@ -24,6 +29,7 @@ abstract contract FlashLander is IERC3156FlashLender {
     error ERC3156InvalidReceiver(address receiver);
 
     constructor(address token){
+        owner = msg.sender;
         tokenAddress = token;    
     }
 
@@ -48,14 +54,16 @@ abstract contract FlashLander is IERC3156FlashLender {
 
         //check that the reserve has enough available liquidity
         uint256 availableLiquidityBefore = maxFlashLoan(token);
-
+        
         if (value > availableLiquidityBefore) {
             revert ERC3156ExceededMaxLoan(availableLiquidityBefore);
         }
 
         uint256 fee = flashFee(token, value);
+        
+        IERC20(tokenAddress).transfer(address(receiver), value);
 
-        IERC20(tokenAddress).transferFrom(address(this), address(receiver), value);
+        //console.log("start onFlashLoan");
 
         if (receiver.onFlashLoan(msg.sender, token, value, fee, data) != RETURN_VALUE) {
             revert ERC3156InvalidReceiver(address(receiver));
