@@ -25,19 +25,8 @@ describe("FlashLoanTest", function () {
 
     const FlashBorrower = await hre.ethers.getContractFactory("FlashBorrower");
     const flashBorrower = await FlashBorrower.connect(ownerBorrower).deploy();
-/*
-    console.log("ownerToken = ", ownerToken.address);
-    console.log("ownerLander = ", ownerLander.address);
-    console.log("ownerBorrower = ", ownerBorrower.address);
-
-    console.log("myStableToken = ", await myStableToken.owner());
-    console.log("flashLander = ", await flashLander.owner());
-    console.log("flashBorrower = ", await flashBorrower.owner());
-*/
-   
+ 
     myStableToken.mint(flashLander.target, initialSupplyAmount);
-
-//    initialSupplyAmount
 
     return { myStableToken, flashLander, flashBorrower, initialSupplyAmount, ownerToken, ownerLander, ownerBorrower, otherAccount };
   }
@@ -76,9 +65,8 @@ describe("FlashLoanTest", function () {
 
       let amount = ethers.parseUnits("1000", "ether");
       let data = ethers.solidityPacked(["uint256"], [0]);
-      let Fee = await flashLander.flashFee(myStableToken.target, amount);
-
-      await myStableToken.connect(ownerToken).mint(flashBorrower.target, Fee);
+      let fee = await flashLander.flashFee(myStableToken.target, amount);
+      await myStableToken.connect(ownerToken).mint(flashBorrower.target, fee);
 
       await expect(flashBorrower.connect(ownerBorrower).flashBorrow(flashLander.target, myStableToken.target, amount, data)).to.emit(flashBorrower, 'DefaultAction');
     }); 
@@ -108,7 +96,42 @@ describe("FlashLoanTest", function () {
       let data = ethers.solidityPacked(["uint256"], [0]);
 
       await expect(flashBorrower.connect(ownerBorrower).flashBorrow(flashLander.target, myStableToken.target, amount, data)).to.be.revertedWith("FlashBorrower: token transfer failed!");
-    });    
+    });  
+    
+    it("Should revert with 'FlashBorrower: wrong lender!'", async function () {
+      const { myStableToken, flashLander, flashBorrower, ownerBorrower, otherAccount } = await loadFixture(deployFlashLoanTest);
+
+      let amount = ethers.parseUnits("1000", "ether");
+      let data = ethers.solidityPacked(["uint256"], [0]);
+      let fee = await flashLander.flashFee(myStableToken.target, amount);
+
+      await expect(
+            flashBorrower.connect(otherAccount).onFlashLoan(
+                flashBorrower.target, 
+                myStableToken.target, 
+                amount, 
+                fee, 
+                data)
+      ).to.be.revertedWith("FlashBorrower: wrong lender!");
+    }); 
+
+    it("Should revert with 'FlashBorrower: initiator must be this address!'", async function () {
+      const { myStableToken, flashLander, flashBorrower, ownerBorrower, otherAccount } = await loadFixture(deployFlashLoanTest);
+
+      let amount = ethers.parseUnits("1000", "ether");
+      let data = ethers.solidityPacked(["uint256"], [0]);
+      let fee = await flashLander.flashFee(myStableToken.target, amount);
+
+      await expect(
+            flashBorrower.connect(otherAccount).onFlashLoan(
+                otherAccount.address, 
+                myStableToken.target, 
+                amount, 
+                fee, 
+                data)
+      ).to.be.revertedWith("FlashBorrower: initiator must be this address!");
+
+    });     
 
   });  
   
