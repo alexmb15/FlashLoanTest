@@ -57,7 +57,7 @@ contract FlashLander is IERC3156FlashLender {
 
         require(receiver.onFlashLoan(msg.sender, token, value, fee, data) == RETURN_VALUE, "FlashLender: onFlashLoan failed!");
 
-        address flashFeeReceiver = _flashFeeReceiver();
+        address flashFeeReceiver = _flashFeeReceiver(token);
         if(flashFeeReceiver != address(this))
            IERC20(tokenAddress).transferFrom(address(this), flashFeeReceiver, fee);
 
@@ -83,7 +83,7 @@ contract FlashLander is IERC3156FlashLender {
 
     }
 
-    function _flashFeeReceiver() internal view virtual returns (address) {
-        return address(this);
+    function _flashFeeReceiver(address token) internal view virtual returns (address) {       
+        return token == tokenAddress ? address(this) : address(0);
     }
 }

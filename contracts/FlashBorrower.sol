@@ -51,7 +51,7 @@ contract FlashBorrower is IERC3156FlashBorrower {
 
         uint totalDebt = amount + fee;
 	    bytes memory functionCallData = abi.encodeWithSelector(IERC20.transfer.selector, address(lender), totalDebt);        
-	    (bool success, bytes memory returnData) = token.call(functionCallData);        
+	    (bool success, /*bytes memory returnData*/) = token.call(functionCallData);        
         require(success, "FlashBorrower: token transfer failed!");
 
         return keccak256("ERC3156FlashBorrower.onFlashLoan");
