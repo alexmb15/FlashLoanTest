@@ -71,22 +71,43 @@ describe("FlashLoanTest", function () {
       await expect(flashBorrower.connect(ownerBorrower).flashBorrow(flashLander.target, myStableToken.target, amount, data)).to.emit(flashBorrower, 'Action1');
     }); 
 
-    it("Should revert with 'not an owner!'", async function () {
+    it("Should be end with success and emit event 'DefaultAction'", async function () {
+      const { myStableToken, flashLander, flashBorrower, ownerToken, ownerBorrower } = await loadFixture(deployFlashLoanTest);
+
+      let amount = ethers.parseUnits("1000", "ether");
+      let data = ethers.solidityPacked(["uint256"], [0]);
+      let Fee = await flashLander.flashFee(myStableToken.target, amount);
+
+      await myStableToken.connect(ownerToken).mint(flashBorrower.target, Fee);
+
+      await expect(flashBorrower.connect(ownerBorrower).flashBorrow(flashLander.target, myStableToken.target, amount, data)).to.emit(flashBorrower, 'DefaultAction');
+    }); 
+
+    it("Should revert with 'FlashLender: not an owner!'", async function () {
       const { myStableToken, flashLander, flashBorrower, otherAccount } = await loadFixture(deployFlashLoanTest);
 
       let amount = ethers.parseUnits("1000", "ether");
       let data = ethers.solidityPacked(["uint256"], [0]);
 
-      await expect(flashBorrower.connect(otherAccount).flashBorrow(flashLander.target, myStableToken.target, amount, data)).to.be.revertedWith("not an owner!");
+      await expect(flashBorrower.connect(otherAccount).flashBorrow(flashLander.target, myStableToken.target, amount, data)).to.be.revertedWith("FlashBorrower: not an owner!");
     });    
 
-    it("Should revert with 'token transfer failed!'", async function () {
+    it("Should revert with 'FlashLender: insufficient token amount!'", async function () {
+      const { myStableToken, flashLander, flashBorrower, ownerBorrower } = await loadFixture(deployFlashLoanTest);
+
+      let amount = ethers.parseUnits("1000001", "ether");
+      let data = ethers.solidityPacked(["uint256"], [0]);
+
+      await expect(flashBorrower.connect(ownerBorrower).flashBorrow(flashLander.target, myStableToken.target, amount, data)).to.be.revertedWith("FlashLender: insufficient token amount!");
+    });    
+  
+    it("Should revert with 'FlashBorrower: token transfer failed!'", async function () {
       const { myStableToken, flashLander, flashBorrower, ownerBorrower } = await loadFixture(deployFlashLoanTest);
 
       let amount = ethers.parseUnits("1000", "ether");
       let data = ethers.solidityPacked(["uint256"], [0]);
 
-      await expect(flashBorrower.connect(ownerBorrower).flashBorrow(flashLander.target, myStableToken.target, amount, data)).to.be.revertedWith("token transfer failed!");
+      await expect(flashBorrower.connect(ownerBorrower).flashBorrow(flashLander.target, myStableToken.target, amount, data)).to.be.revertedWith("FlashBorrower: token transfer failed!");
     });    
 
   });  

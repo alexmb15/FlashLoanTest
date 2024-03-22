@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.15;
 
 // Uncomment this line to use console.log
 import "hardhat/console.sol";
@@ -24,10 +24,6 @@ contract FlashLander is IERC3156FlashLender {
         uint256 timestamp
     );
 
-    error ERC3156UnsupportedToken(address token);
-    error ERC3156ExceededMaxLoan(uint256 maxLoan);
-    error ERC3156InvalidReceiver(address receiver);
-
     constructor(address token){
         owner = msg.sender;
         tokenAddress = token;    
@@ -38,9 +34,7 @@ contract FlashLander is IERC3156FlashLender {
     }
 
     function flashFee(address token, uint256 value) public view virtual returns (uint256) {
-        if (token != tokenAddress) {
-            revert ERC3156UnsupportedToken(token);
-        }
+        require(token == tokenAddress, "FlashLender: wrong token");
 
         return _flashFee(token, value);
     }
@@ -55,19 +49,13 @@ contract FlashLander is IERC3156FlashLender {
         //check that the reserve has enough available liquidity
         uint256 availableLiquidityBefore = maxFlashLoan(token);
         
-        if (value > availableLiquidityBefore) {
-            revert ERC3156ExceededMaxLoan(availableLiquidityBefore);
-        }
+        require(value <= availableLiquidityBefore, "FlashLender: insufficient token amount!");
 
         uint256 fee = flashFee(token, value);
         
-        IERC20(tokenAddress).transfer(address(receiver), value);
+        require(IERC20(tokenAddress).transfer(address(receiver), value), "FlashLender: transfer token feiled!");
 
-        //console.log("start onFlashLoan");
-
-        if (receiver.onFlashLoan(msg.sender, token, value, fee, data) != RETURN_VALUE) {
-            revert ERC3156InvalidReceiver(address(receiver));
-        }
+        require(receiver.onFlashLoan(msg.sender, token, value, fee, data) == RETURN_VALUE, "FlashLender: onFlashLoan failed!");
 
         address flashFeeReceiver = _flashFeeReceiver();
         if(flashFeeReceiver != address(this))
@@ -78,7 +66,7 @@ contract FlashLander is IERC3156FlashLender {
 
         require(
             availableLiquidityAfter == availableLiquidityBefore + fee,
-            "The actual balance of the protocol is inconsistent"
+            "FlashLender: the actual balance of the protocol is inconsistent"
         );  
 
         emit FlashLoan(receiver, token, value, fee, block.timestamp);

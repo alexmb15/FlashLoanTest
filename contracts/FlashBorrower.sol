@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.15;
 
 // Uncomment this line to use console.log
 import "hardhat/console.sol";
@@ -14,14 +14,10 @@ contract FlashBorrower is IERC3156FlashBorrower {
     IERC3156FlashLender lender;
 
     modifier onlyOwner() {
-        require(owner == msg.sender, "not an owner!");
+        require(owner == msg.sender, "FlashBorrower: not an owner!");
         _;
     }
-
-
-    error ERC3156UntrustedLender(address lender);
-    error ERC3156UntrustedInitiator(address initiator);
-
+  
     event Action1(address borrower, address token, uint amount, uint fee);
     event DefaultAction(address borrower, address token, uint amount, uint fee, bytes data);
 
@@ -37,18 +33,15 @@ contract FlashBorrower is IERC3156FlashBorrower {
         bytes calldata data
     ) external override returns(bytes32) {
 
-        if(initiator != address(this)) {
-            revert ERC3156UntrustedInitiator(initiator);
-        }
+   
+        require(initiator == address(this), "FlashBorrower: initiator must be this address!"); 
 
-        if(msg.sender != address(lender)) {
-            revert ERC3156UntrustedLender(msg.sender);
-        }   
+        require(msg.sender == address(lender), "FlashBorrower: wrong lender!");
         
-        require(amount <= IERC20(token).balanceOf(address(this)), "Invalid balance, was the flashLoan successful?");        
+        require(amount <= IERC20(token).balanceOf(address(this)), "FlashBorrower: Invalid balance, was the flashLoan successful?");        
 
         (uint action) = abi.decode(data, (uint));
-//        console.log(token);
+   
         if (action == 1) {
             emit Action1(address(this), token, amount, fee);
         } else {
@@ -59,7 +52,7 @@ contract FlashBorrower is IERC3156FlashBorrower {
         uint totalDebt = amount + fee;
 	    bytes memory functionCallData = abi.encodeWithSelector(IERC20.transfer.selector, address(lender), totalDebt);        
 	    (bool success, bytes memory returnData) = token.call(functionCallData);        
-        require(success, "token transfer failed!");
+        require(success, "FlashBorrower: token transfer failed!");
 
         return keccak256("ERC3156FlashBorrower.onFlashLoan");
     }
